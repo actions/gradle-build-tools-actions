@@ -39,7 +39,7 @@ jobs:
 
       - name: Open Pull Request 
         run: |  
-          gh repo set-default actions/gradle-dependency-submission-action
+          gh repo set-default actions/gradle-build-tools-actions
           gh pr create -B main -H weekly-sync-branch-${{ github.run_id }} --title 'Sync Fork with Upstream' --body 'Weekly Cron. Created by GitHub Actions.'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
