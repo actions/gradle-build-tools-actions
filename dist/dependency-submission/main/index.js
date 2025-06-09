@@ -155931,7 +155931,7 @@ async function setup(config) {
     maybeExportVariableNotEmpty('DEVELOCITY_INJECTION__PLUGIN_REPOSITORY_PASSWORD', config.getGradlePluginRepositoryPassword());
     if (config.getBuildScanPublishEnabled()) {
         maybeExportVariable('DEVELOCITY_INJECTION_ENABLED', 'true');
-        maybeExportVariable('DEVELOCITY_INJECTION_DEVELOCITY_PLUGIN_VERSION', '4.0.1');
+        maybeExportVariable('DEVELOCITY_INJECTION_DEVELOCITY_PLUGIN_VERSION', '4.0.2');
         maybeExportVariable('DEVELOCITY_INJECTION_CCUD_PLUGIN_VERSION', '2.1');
         maybeExportVariable('DEVELOCITY_INJECTION_TERMS_OF_USE_URL', config.getBuildScanTermsOfUseUrl());
         maybeExportVariable('DEVELOCITY_INJECTION_TERMS_OF_USE_AGREE', config.getBuildScanTermsOfUseAgree());
