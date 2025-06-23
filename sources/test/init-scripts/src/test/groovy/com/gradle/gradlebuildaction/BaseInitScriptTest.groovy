@@ -16,7 +16,7 @@ import java.nio.file.Files
 import java.util.zip.GZIPOutputStream
 
 class BaseInitScriptTest extends Specification {
-    static final String DEVELOCITY_PLUGIN_VERSION = '4.0.1'
+    static final String DEVELOCITY_PLUGIN_VERSION = '4.0.2'
     static final String CCUD_PLUGIN_VERSION = '2.1'
 
     static final TestGradleVersion GRADLE_3_X = new TestGradleVersion(GradleVersion.version('3.5.1'), 7, 9)
@@ -27,7 +27,7 @@ class BaseInitScriptTest extends Specification {
     static final TestGradleVersion GRADLE_7_1 = new TestGradleVersion(GradleVersion.version('7.1.1'), 8, 16)
     static final TestGradleVersion GRADLE_7_X = new TestGradleVersion(GradleVersion.version('7.6.2'), 8, 19)
     static final TestGradleVersion GRADLE_8_0 = new TestGradleVersion(GradleVersion.version('8.0.2'), 8, 19)
-    static final TestGradleVersion GRADLE_8_X = new TestGradleVersion(GradleVersion.version('8.14'), 8, 23)
+    static final TestGradleVersion GRADLE_8_X = new TestGradleVersion(GradleVersion.version('8.14.2'), 8, 23)
 
     static final List<TestGradleVersion> ALL_VERSIONS = [
         GRADLE_3_X, // First version where TestKit supports environment variables

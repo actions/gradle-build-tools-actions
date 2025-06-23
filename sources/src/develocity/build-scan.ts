@@ -19,14 +19,14 @@ export async function setup(config: BuildScanConfig): Promise<void> {
     maybeExportVariableNotEmpty('DEVELOCITY_INJECTION_ENFORCE_URL', config.getDevelocityEnforceUrl())
     maybeExportVariableNotEmpty('DEVELOCITY_INJECTION_DEVELOCITY_PLUGIN_VERSION', config.getDevelocityPluginVersion())
     maybeExportVariableNotEmpty('DEVELOCITY_INJECTION_CCUD_PLUGIN_VERSION', config.getDevelocityCcudPluginVersion())
-    maybeExportVariableNotEmpty('DEVELOCITY_INJECTION__PLUGIN_REPOSITORY_URL', config.getGradlePluginRepositoryUrl())
+    maybeExportVariableNotEmpty('DEVELOCITY_INJECTION_PLUGIN_REPOSITORY_URL', config.getPluginRepository().getUrl())
     maybeExportVariableNotEmpty(
-        'DEVELOCITY_INJECTION__PLUGIN_REPOSITORY_USERNAME',
-        config.getGradlePluginRepositoryUsername()
+        'DEVELOCITY_INJECTION_PLUGIN_REPOSITORY_USERNAME',
+        config.getPluginRepository().getUsername()
     )
     maybeExportVariableNotEmpty(
-        'DEVELOCITY_INJECTION__PLUGIN_REPOSITORY_PASSWORD',
-        config.getGradlePluginRepositoryPassword()
+        'DEVELOCITY_INJECTION_PLUGIN_REPOSITORY_PASSWORD',
+        config.getPluginRepository().getPassword()
     )
 
     // If build-scan-publish is enabled, ensure the environment variables are set
@@ -34,7 +34,7 @@ export async function setup(config: BuildScanConfig): Promise<void> {
     // except if they are defined in the configuration
     if (config.getBuildScanPublishEnabled()) {
         maybeExportVariable('DEVELOCITY_INJECTION_ENABLED', 'true')
-        maybeExportVariable('DEVELOCITY_INJECTION_DEVELOCITY_PLUGIN_VERSION', '4.0.1')
+        maybeExportVariable('DEVELOCITY_INJECTION_DEVELOCITY_PLUGIN_VERSION', '4.0.2')
         maybeExportVariable('DEVELOCITY_INJECTION_CCUD_PLUGIN_VERSION', '2.1')
         maybeExportVariable('DEVELOCITY_INJECTION_TERMS_OF_USE_URL', config.getBuildScanTermsOfUseUrl())
         maybeExportVariable('DEVELOCITY_INJECTION_TERMS_OF_USE_AGREE', config.getBuildScanTermsOfUseAgree())
