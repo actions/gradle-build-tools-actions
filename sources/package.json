@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "Execute Gradle Build",
+    "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "postinstall": "patch-package",
     "prettier-write": "prettier --write 'src/**/*.ts'",
@@ -51,7 +54,7 @@
     "@gradle/develocity-agent": "https://develocity-npm-pkgs.gradle.com/gradle-develocity-agent-0.10.0.tgz",
     "@jest/globals": "29.7.0",
     "@types/jest": "29.5.14",
-    "@types/node": "20.19.0",
+    "@types/node": "24.1.0",
     "@types/semver": "7.7.0",
     "@types/unzipper": "0.10.11",
     "@types/which": "3.0.4",
