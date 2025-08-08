@@ -6,8 +6,9 @@ module.exports = {
   transform: {
     '^.+\\.ts$': 'ts-jest'
   },
-  reporters: process.env.CI === 'true' 
-    ? ['default'] 
-    : ['default', '@gradle/develocity-agent/jest-reporter'],
+  reporters: [
+      'default',
+      '@gradle/develocity-agent/jest-reporter',
+  ],
   verbose: true
 }
