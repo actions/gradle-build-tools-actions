@@ -14,11 +14,11 @@ test('will cleanup unused dependency jars and build-cache entries', async () => 
     const tmpDir = path.resolve(projectRoot, 'tmp')
     const cacheCleaner = new CacheCleaner(gradleUserHome, tmpDir)
 
-    await runGradleBuild(projectRoot, 'build', '3.1')
+    await runGradleWrapperBuild(projectRoot, 'build', '3.1')
     
     const timestamp = await cacheCleaner.prepare()
 
-    await runGradleBuild(projectRoot, 'build', '3.1.1')
+    await runGradleWrapperBuild(projectRoot, 'build', '3.1.1')
 
     const commonsMath31 = path.resolve(gradleUserHome, "caches/modules-2/files-2.1/org.apache.commons/commons-math3/3.1")
     const commonsMath311 = path.resolve(gradleUserHome, "caches/modules-2/files-2.1/org.apache.commons/commons-math3/3.1.1")
@@ -43,12 +43,12 @@ test('will cleanup unused gradle versions', async () => {
 
     // Initialize HOME with 2 different Gradle versions
     await runGradleWrapperBuild(projectRoot, 'build')
-    await runGradleBuild(projectRoot, 'build')
+    await runGradleWrapperBuild(projectRoot, 'build', '3.2') // Use wrapper for all builds, with a different version parameter
 
     const timestamp = await cacheCleaner.prepare()
 
     // Run with only one of these versions
-    await runGradleBuild(projectRoot, 'build')
+    await runGradleWrapperBuild(projectRoot, 'build')
 
     const gradle802 = path.resolve(gradleUserHome, "caches/8.0.2")
     const transforms3 = path.resolve(gradleUserHome, "caches/transforms-3")
