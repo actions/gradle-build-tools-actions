@@ -204,7 +204,8 @@ async function submitDependencyGraphs(dependencyGraphFiles: string[]): Promise<v
 
 function translateErrorMessage(jsonFile: string, error: Error): string {
     const relativeJsonFile = getRelativePathFromWorkspace(jsonFile)
-    const mainWarning = `Dependency submission failed for ${relativeJsonFile}.\n${error.message}`
+    const statusInfo = getErrorStatusText(error)
+    const mainWarning = `Dependency submission failed for ${relativeJsonFile}${statusInfo}.\n${error.message}`
     if (error.message === 'Resource not accessible by integration') {
         return `${mainWarning}
 Please ensure that the 'contents: write' permission is available for the workflow job.
@@ -214,6 +215,9 @@ Note that this permission is never available for a 'pull_request' trigger from a
     return mainWarning
 }
 
+const DEPENDENCY_SUBMISSION_MAX_ATTEMPTS = 3
+const DEPENDENCY_SUBMISSION_BASE_DELAY_MS = 1000
+
 async function submitDependencyGraphFile(jsonFile: string): Promise<void> {
     const octokit = getOctokit()
     const jsonContent = fs.readFileSync(jsonFile, 'utf8')
@@ -221,10 +225,42 @@ async function submitDependencyGraphFile(jsonFile: string): Promise<void> {
     const jsonObject = JSON.parse(jsonContent)
     jsonObject.owner = github.context.repo.owner
     jsonObject.repo = github.context.repo.repo
-    const response = await octokit.request('POST /repos/{owner}/{repo}/dependency-graph/snapshots', jsonObject)
 
-    const relativeJsonFile = getRelativePathFromWorkspace(jsonFile)
-    core.notice(`Submitted ${relativeJsonFile}: ${response.data.message}`)
+    for (let attempt = 1; attempt <= DEPENDENCY_SUBMISSION_MAX_ATTEMPTS; attempt++) {
+        try {
+            const response = await octokit.request('POST /repos/{owner}/{repo}/dependency-graph/snapshots', jsonObject)
+            const relativeJsonFile = getRelativePathFromWorkspace(jsonFile)
+            core.notice(`Submitted ${relativeJsonFile}: ${response.data.message}`)
+            return
+        } catch (error) {
+            if (isRetryableError(error) && attempt < DEPENDENCY_SUBMISSION_MAX_ATTEMPTS) {
+                const delay = DEPENDENCY_SUBMISSION_BASE_DELAY_MS * Math.pow(2, attempt - 1)
+                core.info(
+                    `Dependency submission attempt ${attempt} failed` +
+                        `${getErrorStatusText(error)}. ` +
+                        `Retrying in ${delay}ms...`
+                )
+                await new Promise(resolve => setTimeout(resolve, delay))
+            } else {
+                throw error
+            }
+        }
+    }
+}
+
+export function isRetryableError(error: unknown): boolean {
+    if (error instanceof Error && 'status' in error) {
+        const status = (error as Error & {status: number}).status
+        return status === 429 || status >= 500
+    }
+    return false
+}
+
+export function getErrorStatusText(error: unknown): string {
+    if (error instanceof Error && 'status' in error) {
+        return ` (HTTP ${(error as Error & {status: number}).status})`
+    }
+    return ''
 }
 function getReportDirectory(): string {
     return process.env.DEPENDENCY_GRAPH_REPORT_DIR!
