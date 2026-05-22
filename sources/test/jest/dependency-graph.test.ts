@@ -1,7 +1,7 @@
 import {beforeEach, afterEach, describe, expect, it, jest} from '@jest/globals'
 
-import {DependencyGraphConfig} from "../../src/configuration" 
-import {isRetryableError, getErrorStatusText, retryWithBackoff} from "../../src/dependency-graph"
+import {DependencyGraphConfig} from '../../src/configuration' 
+import {isRetryableError, getErrorStatusText, retryWithBackoff} from '../../src/dependency-graph'
 
 function httpError(status: number, message: string): Error & {status: number} {
     return Object.assign(new Error(message), {name: 'HttpError', status})
