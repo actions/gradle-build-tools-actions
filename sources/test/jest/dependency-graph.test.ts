@@ -1,7 +1,7 @@
-import {describe, expect, it} from '@jest/globals'
+import {beforeEach, afterEach, describe, expect, it, jest} from '@jest/globals'
 
 import {DependencyGraphConfig} from "../../src/configuration" 
-import {isRetryableError, getErrorStatusText} from "../../src/dependency-graph"
+import {isRetryableError, getErrorStatusText, retryWithBackoff} from "../../src/dependency-graph"
 
 function httpError(status: number, message: string): Error & {status: number} {
     return Object.assign(new Error(message), {name: 'HttpError', status})
@@ -91,6 +91,87 @@ describe('dependency-graph', () => {
         it('returns empty string for non-Error values', () => {
             expect(getErrorStatusText('string')).toBe('')
             expect(getErrorStatusText(null)).toBe('')
+        })
+    })
+
+    describe('retryWithBackoff', () => {
+        const baseOptions = {
+            maxAttempts: 3,
+            baseDelayMs: 1000,
+            isRetryable: isRetryableError
+        }
+
+        beforeEach(() => {
+            jest.useFakeTimers()
+        })
+
+        afterEach(() => {
+            jest.useRealTimers()
+        })
+
+        it('returns the result on first success without delay', async () => {
+            const operation = jest.fn<() => Promise<string>>().mockResolvedValue('result')
+            const onRetry = jest.fn()
+
+            await expect(retryWithBackoff(operation, {...baseOptions, onRetry})).resolves.toBe('result')
+            expect(operation).toHaveBeenCalledTimes(1)
+            expect(onRetry).not.toHaveBeenCalled()
+        })
+
+        it('retries on a retryable error and returns the eventual result', async () => {
+            const operation = jest.fn<() => Promise<string>>()
+                .mockRejectedValueOnce(httpError(503, 'down'))
+                .mockResolvedValueOnce('ok')
+            const onRetry = jest.fn()
+
+            const promise = retryWithBackoff(operation, {...baseOptions, onRetry})
+            await jest.advanceTimersByTimeAsync(1000)
+
+            await expect(promise).resolves.toBe('ok')
+            expect(operation).toHaveBeenCalledTimes(2)
+            expect(onRetry).toHaveBeenCalledTimes(1)
+            expect(onRetry).toHaveBeenCalledWith(1, 1000, expect.any(Error))
+        })
+
+        it('uses exponential backoff between attempts', async () => {
+            const operation = jest.fn<() => Promise<string>>()
+                .mockRejectedValueOnce(httpError(500, 'fail'))
+                .mockRejectedValueOnce(httpError(500, 'fail'))
+                .mockResolvedValueOnce('ok')
+            const onRetry = jest.fn()
+
+            const promise = retryWithBackoff(operation, {...baseOptions, onRetry})
+            await jest.advanceTimersByTimeAsync(1000) // first retry delay
+            await jest.advanceTimersByTimeAsync(2000) // second retry delay
+
+            await expect(promise).resolves.toBe('ok')
+            expect(operation).toHaveBeenCalledTimes(3)
+            expect(onRetry).toHaveBeenNthCalledWith(1, 1, 1000, expect.any(Error))
+            expect(onRetry).toHaveBeenNthCalledWith(2, 2, 2000, expect.any(Error))
+        })
+
+        it('throws the last error after exhausting maxAttempts', async () => {
+            const error = httpError(503, 'still down')
+            const operation = jest.fn<() => Promise<string>>().mockRejectedValue(error)
+            const onRetry = jest.fn()
+
+            await Promise.all([
+                expect(retryWithBackoff(operation, {...baseOptions, onRetry})).rejects.toBe(error),
+                jest.advanceTimersByTimeAsync(3000) // 1000 + 2000
+            ])
+
+            expect(operation).toHaveBeenCalledTimes(3)
+            expect(onRetry).toHaveBeenCalledTimes(2)
+        })
+
+        it('throws immediately on a non-retryable error', async () => {
+            const error = httpError(404, 'not found')
+            const operation = jest.fn<() => Promise<string>>().mockRejectedValue(error)
+            const onRetry = jest.fn()
+
+            await expect(retryWithBackoff(operation, {...baseOptions, onRetry})).rejects.toBe(error)
+            expect(operation).toHaveBeenCalledTimes(1)
+            expect(onRetry).not.toHaveBeenCalled()
         })
     })
 })

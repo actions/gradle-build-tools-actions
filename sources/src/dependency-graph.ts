@@ -226,26 +226,48 @@ async function submitDependencyGraphFile(jsonFile: string): Promise<void> {
     jsonObject.owner = github.context.repo.owner
     jsonObject.repo = github.context.repo.repo
 
-    for (let attempt = 1; attempt <= DEPENDENCY_SUBMISSION_MAX_ATTEMPTS; attempt++) {
-        try {
-            const response = await octokit.request('POST /repos/{owner}/{repo}/dependency-graph/snapshots', jsonObject)
-            const relativeJsonFile = getRelativePathFromWorkspace(jsonFile)
-            core.notice(`Submitted ${relativeJsonFile}: ${response.data.message}`)
-            return
-        } catch (error) {
-            if (isRetryableError(error) && attempt < DEPENDENCY_SUBMISSION_MAX_ATTEMPTS) {
-                const delay = DEPENDENCY_SUBMISSION_BASE_DELAY_MS * Math.pow(2, attempt - 1)
+    const response = await retryWithBackoff(
+        async () => octokit.request('POST /repos/{owner}/{repo}/dependency-graph/snapshots', jsonObject),
+        {
+            maxAttempts: DEPENDENCY_SUBMISSION_MAX_ATTEMPTS,
+            baseDelayMs: DEPENDENCY_SUBMISSION_BASE_DELAY_MS,
+            isRetryable: isRetryableError,
+            onRetry: (attempt, delayMs, error) => {
                 core.info(
                     `Dependency submission attempt ${attempt} failed` +
                         `${getErrorStatusText(error)}. ` +
-                        `Retrying in ${delay}ms...`
+                        `Retrying in ${delayMs}ms...`
                 )
-                await new Promise(resolve => setTimeout(resolve, delay))
+            }
+        }
+    )
+    const relativeJsonFile = getRelativePathFromWorkspace(jsonFile)
+    core.notice(`Submitted ${relativeJsonFile}: ${response.data.message}`)
+}
+
+export interface RetryOptions {
+    maxAttempts: number
+    baseDelayMs: number
+    isRetryable: (error: unknown) => boolean
+    onRetry?: (attempt: number, delayMs: number, error: unknown) => void
+}
+
+export async function retryWithBackoff<T>(operation: () => Promise<T>, options: RetryOptions): Promise<T> {
+    for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+        try {
+            return await operation()
+        } catch (error) {
+            if (options.isRetryable(error) && attempt < options.maxAttempts) {
+                const delayMs = options.baseDelayMs * Math.pow(2, attempt - 1)
+                options.onRetry?.(attempt, delayMs, error)
+                await new Promise(resolve => setTimeout(resolve, delayMs))
             } else {
                 throw error
             }
         }
     }
+    // Unreachable: loop either returns on success or throws on failure.
+    throw new Error('retryWithBackoff: exhausted attempts')
 }
 
 function hasHttpStatus(error: unknown): error is Error & {status: number} {
