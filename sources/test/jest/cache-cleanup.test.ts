@@ -5,6 +5,7 @@ import path from 'path'
 import {expect, test, jest} from '@jest/globals'
 
 import {CacheCleaner} from '../../src/caching/cache-cleaner'
+import {determineGradleVersion} from '../../src/execution/gradle'
 
 jest.setTimeout(120000)
 
@@ -15,14 +16,20 @@ test('will cleanup unused dependency jars and build-cache entries', async () => 
     const cacheCleaner = new CacheCleaner(gradleUserHome, tmpDir)
 
     await runGradleBuild(projectRoot, 'build', '3.1')
-    
+
     const timestamp = await cacheCleaner.prepare()
 
     await runGradleBuild(projectRoot, 'build', '3.1.1')
 
-    const commonsMath31 = path.resolve(gradleUserHome, "caches/modules-2/files-2.1/org.apache.commons/commons-math3/3.1")
-    const commonsMath311 = path.resolve(gradleUserHome, "caches/modules-2/files-2.1/org.apache.commons/commons-math3/3.1.1")
-    const buildCacheDir = path.resolve(gradleUserHome, "caches/build-cache-1")
+    const commonsMath31 = path.resolve(
+        gradleUserHome,
+        'caches/modules-2/files-2.1/org.apache.commons/commons-math3/3.1'
+    )
+    const commonsMath311 = path.resolve(
+        gradleUserHome,
+        'caches/modules-2/files-2.1/org.apache.commons/commons-math3/3.1.1'
+    )
+    const buildCacheDir = path.resolve(gradleUserHome, 'caches/build-cache-1')
 
     expect(fs.existsSync(commonsMath31)).toBe(true)
     expect(fs.existsSync(commonsMath311)).toBe(true)
@@ -50,12 +57,14 @@ test('will cleanup unused gradle versions', async () => {
     // Run with only one of these versions
     await runGradleBuild(projectRoot, 'build')
 
-    const gradle802 = path.resolve(gradleUserHome, "caches/8.0.2")
-    const transforms3 = path.resolve(gradleUserHome, "caches/transforms-3")
-    const metadata100 = path.resolve(gradleUserHome, "caches/modules-2/metadata-2.100")
-    const wrapper802 = path.resolve(gradleUserHome, "wrapper/dists/gradle-8.0.2-bin")
-    const gradleCurrent = path.resolve(gradleUserHome, "caches/8.14.2")
-    const metadataCurrent = path.resolve(gradleUserHome, "caches/modules-2/metadata-2.107")
+    const gradle802 = path.resolve(gradleUserHome, 'caches/8.0.2')
+    const transforms3 = path.resolve(gradleUserHome, 'caches/transforms-3')
+    const metadata100 = path.resolve(gradleUserHome, 'caches/modules-2/metadata-2.100')
+    const wrapper802 = path.resolve(gradleUserHome, 'wrapper/dists/gradle-8.0.2-bin')
+    const currentGradleVersion = await determineGradleVersion('gradle')
+    expect(currentGradleVersion).toBeDefined()
+    const gradleCurrent = path.resolve(gradleUserHome, `caches/${currentGradleVersion}`)
+    const metadataCurrent = path.resolve(gradleUserHome, 'caches/modules-2/metadata-2.107')
 
     expect(fs.existsSync(gradle802)).toBe(true)
     expect(fs.existsSync(transforms3)).toBe(true)
@@ -95,10 +104,10 @@ async function runGradleWrapperBuild(projectRoot: string, args: string, version:
 
 function prepareTestProject(): string {
     const projectRoot = 'test/jest/resources/cache-cleanup'
-    fs.rmSync(path.resolve(projectRoot, 'HOME'), { recursive: true, force: true })
-    fs.rmSync(path.resolve(projectRoot, 'tmp'), { recursive: true, force: true })
-    fs.rmSync(path.resolve(projectRoot, 'build'), { recursive: true, force: true })
-    fs.rmSync(path.resolve(projectRoot, '.gradle'), { recursive: true, force: true })
+    fs.rmSync(path.resolve(projectRoot, 'HOME'), {recursive: true, force: true})
+    fs.rmSync(path.resolve(projectRoot, 'tmp'), {recursive: true, force: true})
+    fs.rmSync(path.resolve(projectRoot, 'build'), {recursive: true, force: true})
+    fs.rmSync(path.resolve(projectRoot, '.gradle'), {recursive: true, force: true})
     return projectRoot
 }
 

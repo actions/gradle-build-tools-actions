@@ -3,6 +3,10 @@ import {describe, expect, it} from '@jest/globals'
 import {DependencyGraphConfig} from "../../src/configuration" 
 import {isRetryableError, getErrorStatusText} from "../../src/dependency-graph"
 
+function httpError(status: number, message: string): Error & {status: number} {
+    return Object.assign(new Error(message), {name: 'HttpError', status})
+}
+
 describe('dependency-graph', () => {
     describe('constructs job correlator', () => {
         it('removes commas from workflow name', () => {
@@ -36,13 +40,6 @@ describe('dependency-graph', () => {
     })
 
     describe('isRetryableError', () => {
-        function httpError(status: number, message: string): Error {
-            const error = new Error(message)
-            error.name = 'HttpError'
-            ;(error as Error & {status: number}).status = status
-            return error
-        }
-
         it('returns true for HTTP 429 (rate limit)', () => {
             expect(isRetryableError(httpError(429, 'rate limit exceeded'))).toBe(true)
         })
@@ -84,9 +81,7 @@ describe('dependency-graph', () => {
 
     describe('getErrorStatusText', () => {
         it('returns status text for HttpError with status', () => {
-            const error = new Error('Server Error')
-            ;(error as Error & {status: number}).status = 503
-            expect(getErrorStatusText(error)).toBe(' (HTTP 503)')
+            expect(getErrorStatusText(httpError(503, 'Server Error'))).toBe(' (HTTP 503)')
         })
 
         it('returns empty string for plain Error without status', () => {

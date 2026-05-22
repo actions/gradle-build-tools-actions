@@ -248,20 +248,21 @@ async function submitDependencyGraphFile(jsonFile: string): Promise<void> {
     }
 }
 
+function hasHttpStatus(error: unknown): error is Error & {status: number} {
+    return error instanceof Error && 'status' in error && typeof (error as {status: unknown}).status === 'number'
+}
+
 export function isRetryableError(error: unknown): boolean {
-    if (error instanceof Error && 'status' in error) {
-        const status = (error as Error & {status: number}).status
-        return status === 429 || status >= 500
+    if (!hasHttpStatus(error)) {
+        return false
     }
-    return false
+    return error.status >= 500 || error.status === 429 // Too Many Requests
 }
 
 export function getErrorStatusText(error: unknown): string {
-    if (error instanceof Error && 'status' in error) {
-        return ` (HTTP ${(error as Error & {status: number}).status})`
-    }
-    return ''
+    return hasHttpStatus(error) ? ` (HTTP ${error.status})` : ''
 }
+
 function getReportDirectory(): string {
     return process.env.DEPENDENCY_GRAPH_REPORT_DIR!
 }
