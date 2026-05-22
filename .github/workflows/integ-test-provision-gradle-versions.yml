@@ -52,7 +52,7 @@ jobs:
     - name: Test uses Gradle v7.1.1
       working-directory: .github/workflow-samples/no-wrapper
       run: gradle help "-DgradleVersionCheck=7.1.1"
-    - name: Setup Java for current Gradle
+    - name: Setup Java for latest Gradle aliases
       uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
       with:
         distribution: temurin
