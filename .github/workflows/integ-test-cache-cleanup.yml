@@ -35,6 +35,11 @@ jobs:
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
+    - name: Setup Java for Gradle cache cleanup
+      uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+      with:
+        distribution: temurin
+        java-version: 17
     - name: Setup Gradle
       uses: ./setup-gradle
       with:
@@ -58,6 +63,11 @@ jobs:
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
+    - name: Setup Java for Gradle cache cleanup
+      uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+      with:
+        distribution: temurin
+        java-version: 17
     - name: Setup Gradle
       uses: ./setup-gradle
       with:
