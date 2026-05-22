@@ -34,6 +34,12 @@ jobs:
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
+    - name: Setup Java for current Gradle
+      if: ${{ matrix.gradle == 'current' }}
+      uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+      with:
+        distribution: temurin
+        java-version: 17
     - name: Setup Gradle
       id: setup-gradle
       uses: ./setup-gradle
@@ -53,4 +59,3 @@ jobs:
       with:
         script: |
           core.setFailed('No Build Scan detected')   
-
