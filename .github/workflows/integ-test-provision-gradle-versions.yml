@@ -52,6 +52,11 @@ jobs:
     - name: Test uses Gradle v7.1.1
       working-directory: .github/workflow-samples/no-wrapper
       run: gradle help "-DgradleVersionCheck=7.1.1"
+    - name: Setup Java for current Gradle
+      uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+      with:
+        distribution: temurin
+        java-version: 17
     - name: Setup Gradle with release-candidate
       uses: ./setup-gradle
       with:
@@ -68,7 +73,7 @@ jobs:
       working-directory: .github/workflow-samples/no-wrapper
       run: gradle help
     - name: Check current version output parameter
-      if: ${{ !startsWith(steps.gradle-current.outputs.gradle-version , '8.') }}
+      if: ${{ !startsWith(steps.gradle-current.outputs.gradle-version, '8.') && !startsWith(steps.gradle-current.outputs.gradle-version, '9.') }}
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       with:
         script: |
