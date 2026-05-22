@@ -204,7 +204,8 @@ async function submitDependencyGraphs(dependencyGraphFiles: string[]): Promise<v
 
 function translateErrorMessage(jsonFile: string, error: Error): string {
     const relativeJsonFile = getRelativePathFromWorkspace(jsonFile)
-    const mainWarning = `Dependency submission failed for ${relativeJsonFile}.\n${error.message}`
+    const statusInfo = getErrorStatusText(error)
+    const mainWarning = `Dependency submission failed for ${relativeJsonFile}${statusInfo}.\n${error.message}`
     if (error.message === 'Resource not accessible by integration') {
         return `${mainWarning}
 Please ensure that the 'contents: write' permission is available for the workflow job.
@@ -214,6 +215,9 @@ Note that this permission is never available for a 'pull_request' trigger from a
     return mainWarning
 }
 
+const DEPENDENCY_SUBMISSION_MAX_ATTEMPTS = 3
+const DEPENDENCY_SUBMISSION_BASE_DELAY_MS = 1000
+
 async function submitDependencyGraphFile(jsonFile: string): Promise<void> {
     const octokit = getOctokit()
     const jsonContent = fs.readFileSync(jsonFile, 'utf8')
@@ -221,11 +225,66 @@ async function submitDependencyGraphFile(jsonFile: string): Promise<void> {
     const jsonObject = JSON.parse(jsonContent)
     jsonObject.owner = github.context.repo.owner
     jsonObject.repo = github.context.repo.repo
-    const response = await octokit.request('POST /repos/{owner}/{repo}/dependency-graph/snapshots', jsonObject)
 
+    const response = await retryWithBackoff(
+        async () => octokit.request('POST /repos/{owner}/{repo}/dependency-graph/snapshots', jsonObject),
+        {
+            maxAttempts: DEPENDENCY_SUBMISSION_MAX_ATTEMPTS,
+            baseDelayMs: DEPENDENCY_SUBMISSION_BASE_DELAY_MS,
+            isRetryable: isRetryableError,
+            onRetry: (attempt, delayMs, error) => {
+                core.info(
+                    `Dependency submission attempt ${attempt} failed` +
+                        `${getErrorStatusText(error)}. ` +
+                        `Retrying in ${delayMs}ms...`
+                )
+            }
+        }
+    )
     const relativeJsonFile = getRelativePathFromWorkspace(jsonFile)
     core.notice(`Submitted ${relativeJsonFile}: ${response.data.message}`)
 }
+
+export interface RetryOptions {
+    maxAttempts: number
+    baseDelayMs: number
+    isRetryable: (error: unknown) => boolean
+    onRetry?: (attempt: number, delayMs: number, error: unknown) => void
+}
+
+export async function retryWithBackoff<T>(operation: () => Promise<T>, options: RetryOptions): Promise<T> {
+    for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+        try {
+            return await operation()
+        } catch (error) {
+            if (options.isRetryable(error) && attempt < options.maxAttempts) {
+                const delayMs = options.baseDelayMs * Math.pow(2, attempt - 1)
+                options.onRetry?.(attempt, delayMs, error)
+                await new Promise(resolve => setTimeout(resolve, delayMs))
+            } else {
+                throw error
+            }
+        }
+    }
+    // Unreachable: loop either returns on success or throws on failure.
+    throw new Error('retryWithBackoff: exhausted attempts')
+}
+
+function hasHttpStatus(error: unknown): error is Error & {status: number} {
+    return error instanceof Error && 'status' in error && typeof (error as {status: unknown}).status === 'number'
+}
+
+export function isRetryableError(error: unknown): boolean {
+    if (!hasHttpStatus(error)) {
+        return false
+    }
+    return error.status >= 500 || error.status === 429 // Too Many Requests
+}
+
+export function getErrorStatusText(error: unknown): string {
+    return hasHttpStatus(error) ? ` (HTTP ${error.status})` : ''
+}
+
 function getReportDirectory(): string {
     return process.env.DEPENDENCY_GRAPH_REPORT_DIR!
 }
