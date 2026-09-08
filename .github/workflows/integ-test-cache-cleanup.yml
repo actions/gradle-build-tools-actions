@@ -17,6 +17,7 @@ env:
   SKIP_DIST: ${{ inputs.skip-dist }}
   # Requires a fresh cache entry each run
   GRADLE_BUILD_ACTION_CACHE_KEY_PREFIX: cache-cleanup-${{ inputs.cache-key-prefix }}-${{github.run_number}}
+  GRADLE_BUILD_ACTION_CACHE_KEY_JOB: cache-cleanup
 
 permissions:
   contents: read
@@ -31,25 +32,22 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
-    - name: Setup Java for Gradle cache cleanup
-      uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
-      with:
-        distribution: temurin
-        java-version: 17
     - name: Setup Gradle
       uses: ./setup-gradle
       with:
         cache-read-only: false # For testing, allow writing cache entries on non-default branches
     - name: Build with 3.1
-      working-directory: sources/test/jest/resources/cache-cleanup
+      working-directory: .github/workflow-samples/cache-cleanup
       run: ./gradlew --no-daemon --build-cache -Dcommons_math3_version="3.1" build
 
   # Second build will use the cache from the first build, but cleanup should remove unused artifacts
   cache-cleanup-assemble-build:
+    env:
+      GRADLE_BUILD_ACTION_CACHE_KEY_JOB_EXECUTION: ${{github.sha}}_1
     needs: cache-cleanup-full-build
     strategy:
       max-parallel: 1
@@ -59,25 +57,23 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
-    - name: Setup Java for Gradle cache cleanup
-      uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
-      with:
-        distribution: temurin
-        java-version: 17
     - name: Setup Gradle
       uses: ./setup-gradle
       with:
         cache-read-only: false
         cache-cleanup: 'on-success'
     - name: Build with 3.1.1
-      working-directory: sources/test/jest/resources/cache-cleanup
+      working-directory: .github/workflow-samples/cache-cleanup
       run: ./gradlew --no-daemon --build-cache -Dcommons_math3_version="3.1.1" build
 
+  # Third build will restore cache entry from second, and verify stale content removed
   cache-cleanup-check-clean-cache:
+    env:
+      GRADLE_BUILD_ACTION_CACHE_KEY_JOB_EXECUTION: ${{github.sha}}_1
     needs: cache-cleanup-assemble-build
     strategy:
       max-parallel: 1
@@ -87,7 +83,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 

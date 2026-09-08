@@ -30,7 +30,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
@@ -46,7 +46,7 @@ jobs:
       shell: bash
       working-directory: .github/workflow-samples/groovy-dsl
       run: | 
-        grep -q 'Eclipse Temurin JDK 1.8' output.txt || (echo "::error::Did not detect preinstalled JDK 1.8" && exit 1)
+        grep -q 'Eclipse Temurin JDK 8' output.txt || (echo "::error::Did not detect preinstalled JDK 8" && exit 1)
         grep -q 'Eclipse Temurin JDK 11' output.txt || (echo "::error::Did not detect preinstalled JDK 11" && exit 1)
         grep -q 'Eclipse Temurin JDK 17' output.txt || (echo "::error::Did not detect preinstalled JDK 17" && exit 1)
         grep -q 'Eclipse Temurin JDK 21' output.txt || (echo "::error::Did not detect preinstalled JDK 21" && exit 1)
@@ -60,20 +60,24 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
-    - name: Setup Java 20
-      uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
-      with:
-        distribution: 'temurin'
-        java-version: 20
     - name: Setup Java 16
-      uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+      uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
       with:
         distribution: 'temurin'
         java-version: 16
+        # Temurin 16 is EOL and publishes no signatures: setup-java v6 enables verify-signature by default
+        verify-signature: false
+    - name: Setup Java 20
+      uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+      with:
+        distribution: 'temurin'
+        java-version: 20
+        # Temurin 20 is EOL and publishes no signatures: setup-java v6 enables verify-signature by default
+        verify-signature: false
     - name: Setup Gradle
       uses: ./setup-gradle
     - name: List detected toolchains
@@ -92,7 +96,7 @@ jobs:
       shell: bash
       working-directory: .github/workflow-samples/groovy-dsl
       run: | 
-        grep -q 'Eclipse Temurin JDK 1.8' output.txt || (echo "::error::Did not detect preinstalled JDK 1.8" && exit 1)
+        grep -q 'Eclipse Temurin JDK 8' output.txt || (echo "::error::Did not detect preinstalled JDK 8" && exit 1)
         grep -q 'Eclipse Temurin JDK 11' output.txt || (echo "::error::Did not detect preinstalled JDK 11" && exit 1)
         grep -q 'Eclipse Temurin JDK 17' output.txt || (echo "::error::Did not detect preinstalled JDK 17" && exit 1)
         grep -q 'Eclipse Temurin JDK 21' output.txt || (echo "::error::Did not detect preinstalled JDK 21" && exit 1)

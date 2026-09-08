@@ -7,7 +7,7 @@ import spock.lang.Requires
 import static org.junit.Assume.assumeTrue
 
 class TestDevelocityInjection extends BaseInitScriptTest {
-    static final List<TestGradleVersion> CCUD_COMPATIBLE_VERSIONS = ALL_VERSIONS - [GRADLE_3_X]
+    static final List<TestGradleVersion> CCUD_COMPATIBLE_VERSIONS = ALL_VERSIONS
 
     def initScript = 'gradle-actions.inject-develocity.init.gradle'
 
@@ -355,7 +355,7 @@ class TestDevelocityInjection extends BaseInitScriptTest {
     }
 
     void outputContainsBuildScanUrl(BuildResult result) {
-        def opt = ['Publishing build scan...', 'Publishing Build Scan...'].stream()
+        def opt = ['Publishing build scan...', 'Publishing Build Scan...', 'Publishing Build Scan to Develocity...'].stream()
             .filter { result.output.contains("${it}\n${mockScansServer.address}s/$PUBLIC_BUILD_SCAN_ID") }.findFirst()
         assert opt.isPresent()
         def message = opt.get()

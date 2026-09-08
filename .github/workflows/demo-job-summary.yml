@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Build and upload distribution
       uses: ./.github/actions/build-dist
 
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
@@ -46,7 +46,7 @@ jobs:
       run: | 
          ./gradlew tasks --no-daemon
          ./gradlew help check
-         ./gradlew wrapper --gradle-version 8.7 --gradle-distribution-sha256-sum 544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d
+         ./gradlew :wrapper --gradle-version 8.7 --gradle-distribution-sha256-sum 544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d
     - name: Fail groovy-dsl project
       working-directory: .github/workflow-samples/groovy-dsl
       continue-on-error: true
@@ -57,12 +57,85 @@ jobs:
         build-root-directory: .github/workflow-samples/groovy-dsl
         dependency-graph: generate-and-upload
 
+  # Exercises every Gradle version support status in a single Job Summary: end-of-life versions all
+  # share one expandable section and are each marked with a warning sign, out-of-date versions share
+  # a single info sign and legend, and the current version is left unmarked.
+  # Three end-of-life versions and two out-of-date ones exercise the plural wording throughout, and
+  # the two 7.x versions alongside a 6.x one check that each affected release line is named once,
+  # as "Gradle 6.x and 7.x releases".
+  # Versions are picked relative to Gradle 9.x being current; revisit once Gradle 10 is released.
+  support-status-eol-and-outdated:
+    needs: build-distribution
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    # Java 11, since Gradle 6.x cannot run on the Java 17 used elsewhere in this workflow.
+    - name: Initialize integ-test
+      uses: ./.github/actions/init-integ-test
+      with:
+        java-version: '11'
+
+    - name: Setup Gradle 6.9.4 (end-of-life)
+      uses: ./setup-gradle
+      with:
+        gradle-version: '6.9.4'
+    - name: Build with Gradle 6.9.4
+      working-directory: .github/workflow-samples/no-wrapper
+      run: gradle help
+
+    - name: Setup Gradle 7.4 (end-of-life)
+      uses: ./setup-gradle
+      with:
+        gradle-version: '7.4'
+    - name: Build with Gradle 7.4
+      working-directory: .github/workflow-samples/no-wrapper
+      run: gradle help
+
+    - name: Setup Gradle 7.6.6 (end-of-life)
+      uses: ./setup-gradle
+      with:
+        gradle-version: '7.6.6'
+    - name: Build with Gradle 7.6.6
+      working-directory: .github/workflow-samples/no-wrapper
+      run: gradle help
+
+    - name: Setup Gradle 8.0.2 (out of date)
+      uses: ./setup-gradle
+      with:
+        gradle-version: '8.0.2'
+    - name: Build with Gradle 8.0.2
+      working-directory: .github/workflow-samples/no-wrapper
+      run: gradle help
+
+    - name: Setup Gradle 8.14.5 (out of date)
+      uses: ./setup-gradle
+      with:
+        gradle-version: '8.14.5'
+    - name: Build with Gradle 8.14.5
+      working-directory: .github/workflow-samples/no-wrapper
+      run: gradle help
+
+    # Gradle 9 and later require Java 17
+    - name: Setup Java 17
+      uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+      with:
+        distribution: temurin
+        java-version: 17
+    - name: Setup Gradle current (no status reported)
+      uses: ./setup-gradle
+      with:
+        gradle-version: current
+    - name: Build with the current Gradle version
+      working-directory: .github/workflow-samples/no-wrapper
+      run: gradle help
+
   successful-builds-with-no-summary:
     needs: build-distribution
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
@@ -82,7 +155,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
@@ -103,7 +176,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
@@ -111,6 +184,92 @@ jobs:
       uses: ./setup-gradle
       with:
         cache-read-only: true
+    - name: Build kotlin-dsl project
+      working-directory: .github/workflow-samples/kotlin-dsl
+      run: ./gradlew assemble
+
+  cache-disabled:
+    needs: build-distribution
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Initialize integ-test
+      uses: ./.github/actions/init-integ-test
+
+    - name: Setup Gradle
+      uses: ./setup-gradle
+      with:
+        cache-disabled: true
+    - name: Build kotlin-dsl project
+      working-directory: .github/workflow-samples/kotlin-dsl
+      run: ./gradlew assemble
+
+  cache-provider-external:
+    needs: build-distribution
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Initialize integ-test
+      uses: ./.github/actions/init-integ-test
+
+    - name: Setup Gradle
+      uses: ./setup-gradle
+      with:
+        cache-provider: external
+    - name: Build kotlin-dsl project
+      working-directory: .github/workflow-samples/kotlin-dsl
+      run: ./gradlew assemble
+
+  basic-caching:
+    needs: build-distribution
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Initialize integ-test
+      uses: ./.github/actions/init-integ-test
+
+    - name: Setup Gradle
+      uses: ./setup-gradle
+      with:
+        cache-provider: basic
+    - name: Build kotlin-dsl project
+      working-directory: .github/workflow-samples/kotlin-dsl
+      run: ./gradlew assemble
+
+  terms-of-use-accepted:
+    needs: build-distribution
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Initialize integ-test
+      uses: ./.github/actions/init-integ-test
+
+    - name: Setup Gradle
+      uses: ./setup-gradle
+      with:
+        build-scan-terms-of-use-url: https://gradle.com/help/legal-terms-of-use
+        build-scan-terms-of-use-agree: yes
+    - name: Build kotlin-dsl project
+      working-directory: .github/workflow-samples/kotlin-dsl
+      run: ./gradlew assemble
+
+  develocity-access-key-set:
+    needs: build-distribution
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Initialize integ-test
+      uses: ./.github/actions/init-integ-test
+
+    - name: Setup Gradle
+      uses: ./setup-gradle
+      with:
+        develocity-access-key: ${{ secrets.DV_SOLUTIONS_ACCESS_KEY }}
     - name: Build kotlin-dsl project
       working-directory: .github/workflow-samples/kotlin-dsl
       run: ./gradlew assemble

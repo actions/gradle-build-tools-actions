@@ -1,40 +1,43 @@
 name: CI-check-no-dist-update
 
-# Prohibit any change to 'dist/**' on a non-release branch
+# Verify that the checked-in distribution matches the source.
 on:
   workflow_dispatch:
   pull_request:
     paths:
+      - 'sources/**'
       - 'dist/**'
 
 permissions:
   contents: read
 
 jobs:
+  # Keep this identifier for compatibility with existing branch protection.
   fail-on-dist-update:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      with:
-        fetch-depth: 0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Get changed files
-      id: changed-files
-      uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46.0.5
+    - name: Set up Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
-        files: |
-          dist/**
+        node-version: 24
+        cache: npm
+        cache-dependency-path: sources/package-lock.json
 
-    - name: Print changes to dist directory
-      env:
-        ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+    - name: Install npm dependencies
+      working-directory: sources
+      run: npm clean-install
+
+    - name: Build distribution
+      working-directory: sources
+      run: npm run compile
+
+    - name: Verify checked-in distribution
       run: |
-        for file in ${ALL_CHANGED_FILES}; do
-          echo "$file was changed"
-        done
-
-    - run: |
-        echo "The 'dist' directory is automatically updated by the release process."
-        echo "It should not be updated manually in a non-release branch or a pull request."
-        exit 1
+        if ! diff --recursive --brief sources/dist dist; then
+          echo "The checked-in 'dist' directory does not match the compiled sources."
+          echo "Run 'npm clean-install && npm run compile' in 'sources', then copy 'sources/dist/' to 'dist/'."
+          exit 1
+        fi
