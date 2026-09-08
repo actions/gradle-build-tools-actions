@@ -31,7 +31,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
@@ -42,29 +42,6 @@ jobs:
     - name: Build using Gradle wrapper
       working-directory: .github/workflow-samples/groovy-dsl
       run: ./gradlew test
-
-  # Test that the gradle-user-home cache will cache dependencies, by running build with --offline
-  restore-gradle-home-dependencies-cache:
-    needs: restore-gradle-home-seed-build
-    strategy:
-      max-parallel: 1
-      fail-fast: false
-      matrix:
-        os: ${{fromJSON(inputs.runner-os)}}
-    runs-on: ${{ matrix.os }}
-    steps:
-    - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-    - name: Initialize integ-test
-      uses: ./.github/actions/init-integ-test
-
-    - name: Setup Gradle
-      uses: ./setup-gradle
-      with:
-        cache-read-only: true
-    - name: Execute Gradle build with --offline
-      working-directory: .github/workflow-samples/groovy-dsl
-      run: ./gradlew test --offline
 
   # Test that the gradle-user-home cache will cache and restore local build-cache
   restore-gradle-home-build-cache:
@@ -77,7 +54,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
@@ -100,7 +77,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 
@@ -125,7 +102,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Initialize integ-test
       uses: ./.github/actions/init-integ-test
 

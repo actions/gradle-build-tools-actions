@@ -15,6 +15,15 @@ for vulnerable dependencies, as well as to populate the
 
 If you're confused by the behaviour you're seeing or have specific questions, please check out [the FAQ](dependency-submission-faq.md) before raising an issue.
 
+> [!NOTE]
+> ### ⚡️ Choice of caching providers in v6
+> To provide the fastest possible build experience this action includes **Enhanced Caching** via `gradle-actions-caching`, an optimized provider powered by proprietary technology. This feature is **free for all public repositories** and is currently available as a **Free Preview** for private repositories. 
+>
+> **Prefer a 100% Open Source (MIT) path?**
+> We also provide a **Basic Caching** provider as a thin wrapper over `actions/cache`. This provider is **free for all repositories** (public and private) and can be enabled at any time by setting `cache-provider: basic`.
+>
+> For a full breakdown of the components, usage tiers, and our **Safe Harbor** data privacy commitment, see our [Distribution & Licensing Guide](../DISTRIBUTION.md).
+
 ## General usage
 
 The following workflow will generate a dependency graph for a Gradle project and submit it immediately to the repository via the
@@ -36,14 +45,14 @@ jobs:
   dependency-submission:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-java@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-java@v5
       with:
         distribution: temurin
         java-version: 17
 
     - name: Generate and submit dependency graph
-      uses: gradle/actions/dependency-submission@v4
+      uses: gradle/actions/dependency-submission@v6
 ```
 
 ### Gradle execution
@@ -60,6 +69,17 @@ on the command-line will be used.
 The action provides the ability to override the Gradle version and task to execute, as well as provide 
 additional arguments that will be passed to Gradle on the command-line. See [Configuration Parameters](#configuration-parameters) below.
 
+### Selecting a cache provider
+
+See [Selecting a cache provider](setup-gradle.md#selecting-a-cache-provider) for details on choosing between the `enhanced` (default) and `basic` cache providers via the `cache-provider` input.
+
+### Disabling caching
+
+Caching is enabled by default. You can disable caching for the action as follows:
+```yaml
+cache-disabled: true
+```
+
 ### Publishing a Develocity Build Scan® from your dependency submission workflow
 
 You can automatically publish a free Develocity Build Scan on every run of `gradle/actions/dependency-submission`. 
@@ -68,7 +88,7 @@ Three input parameters are required, one to enable publishing and two more to ac
 
 ```yaml
     - name: Generate and submit dependency graph
-      uses: gradle/actions/dependency-submission@v4
+      uses: gradle/actions/dependency-submission@v6
       with:
         build-scan-publish: true
         build-scan-terms-of-use-url: "https://gradle.com/help/legal-terms-of-use"
@@ -83,7 +103,7 @@ In some cases, the default action configuration will not be sufficient, and addi
 
 ```yaml
     - name: Generate and save dependency graph
-      uses: gradle/actions/dependency-submission@v4
+      uses: gradle/actions/dependency-submission@v6
       with:
         # Use a particular Gradle version instead of the configured wrapper.
         gradle-version: '8.6'
@@ -130,7 +150,7 @@ To reduce storage costs for these artifacts, you can:
 
 ```yaml
     - name: Generate dependency graph but only store workflow artifacts for 1 day
-      uses: gradle/actions/dependency-submission@v4
+      uses: gradle/actions/dependency-submission@v6
       with:
         artifact-retention-days: 1 # Default is 30 days or as configured for repository
 ```
@@ -139,7 +159,7 @@ To reduce storage costs for these artifacts, you can:
 
 ```yaml
     - name: Generate and submit dependency graph but do not store as workflow artifact
-      uses: gradle/actions/dependency-submission@v4
+      uses: gradle/actions/dependency-submission@v6
       with:
         dependency-graph: 'generate-and-submit' # Default value is 'generate-submit-and-upload'
 ```
@@ -299,7 +319,7 @@ For example, if you want to exclude dependencies resolved by the `buildSrc` proj
 
 ```yaml
     - name: Generate and submit dependency graph
-      uses: gradle/actions/dependency-submission@v4
+      uses: gradle/actions/dependency-submission@v6
       with:
         # Exclude all dependencies that originate solely in the 'buildSrc' project
         dependency-graph-exclude-projects: ':buildSrc'
@@ -343,14 +363,14 @@ jobs:
   dependency-submission:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-java@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-java@v5
       with:
         distribution: temurin
         java-version: 17
 
     - name: Generate and submit dependency graph
-      uses: gradle/actions/dependency-submission@v4
+      uses: gradle/actions/dependency-submission@v6
 ```
 
 #### 2. Add a dedicated Dependency Review workflow
@@ -405,14 +425,14 @@ jobs:
   dependency-submission:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-java@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-java@v5
       with:
         distribution: temurin
         java-version: 17
 
     - name: Generate and save dependency graph
-      uses: gradle/actions/dependency-submission@v4
+      uses: gradle/actions/dependency-submission@v6
       with:
         dependency-graph: generate-and-upload
 ```
@@ -435,7 +455,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download and submit dependency graph
-      uses: gradle/actions/dependency-submission@v4
+      uses: gradle/actions/dependency-submission@v6
       with:
         dependency-graph: download-and-submit # Download saved dependency-graph and submit
 ```
@@ -443,7 +463,7 @@ jobs:
 # Gradle version compatibility
 
 Dependency-graph generation is compatible with most versions of Gradle >= `5.2`, and is tested regularly against 
-Gradle versions `5.2.1`, `5.6.4`, `6.0.1`, `6.9.4`, `7.1.1` and `7.6.3`, as well as all patched versions of Gradle 8.x.
+Gradle versions `5.2.1`, `5.6.4`, `6.0.1`, `6.9.4`, `7.1.1`, `7.6.6`, `8.0.2` and `8.14.4`, as well as all patched versions of Gradle 9.x.
 
 A known exception to this is that Gradle `7.0`, `7.0.1` and `7.0.2` are not supported.
 
@@ -454,4 +474,3 @@ See [here](https://github.com/gradle/github-dependency-graph-gradle-plugin?tab=r
 - Dependency Submission Demo repository: https://github.com/gradle/github-dependency-submission-demo
 - GitHub Dependency Graph Gradle Plugin: https://github.com/gradle/github-dependency-graph-gradle-plugin
 - Webinar - Gradle at Scale with GitHub and GitHub Actions at Allegro: https://www.youtube.com/watch?v=gV94I28FPos
-

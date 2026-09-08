@@ -5,35 +5,55 @@ on:
   push:
     branches:
     - 'main'
+    - 'bot/gradle-actions-caching'
     paths:
     - 'dist/**'
-
-concurrency:
-  group: integ-test
-  cancel-in-progress: false
+    - 'sources/vendor/gradle-actions-caching/**'
 
 permissions:
   contents: read
 
 jobs:
+  smoke-tests:
+    uses: ./.github/workflows/suite-smoke-test-caching.yml
+    concurrency:
+      group: CI-smoke-test-caching
+      cancel-in-progress: false
+    with:
+      skip-dist: true
+      runner-os: '["ubuntu-latest", "windows-latest"]'
+    secrets: inherit
+
   caching-integ-tests:
     uses: ./.github/workflows/suite-integ-test-caching.yml
     concurrency:
-      group: CI-integ-test-full
+      group: CI-integ-test-caching
       cancel-in-progress: false
     with:
-      runner-os: '["ubuntu-latest", "windows-latest", "macos-latest"]'
       skip-dist: true
     secrets: inherit
 
   other-integ-tests:
     permissions:
       contents: write
+      actions: read
+    needs: caching-integ-tests
     uses: ./.github/workflows/suite-integ-test-other.yml
     concurrency:
-      group: CI-integ-test-full
+      group: CI-integ-test-other
       cancel-in-progress: false
     with:
-      runner-os: '["ubuntu-latest", "windows-latest", "macos-latest"]'
+      skip-dist: true
+    secrets: inherit
+
+  dependency-submission-integ-tests:
+    permissions:
+      contents: write
+    needs: other-integ-tests
+    uses: ./.github/workflows/suite-integ-test-dependency-submission.yml
+    concurrency:
+      group: CI-integ-test-dependency-submission
+      cancel-in-progress: false
+    with:
       skip-dist: true
     secrets: inherit

@@ -1,7 +1,8 @@
 import * as setupGradle from '../../setup-gradle'
 
-import {CacheConfig, SummaryConfig} from '../../configuration'
+import {CacheConfig, DevelocityConfig, SummaryConfig} from '../../configuration'
 import {handlePostActionError} from '../../errors'
+import {forceExit} from '../../force-exit'
 
 // Catch and log any unhandled exceptions.  These exceptions can leak out of the uploadChunk method in
 // @actions/toolkit when a failed upload closes the file descriptor causing any in-process reads to
@@ -13,13 +14,13 @@ process.on('uncaughtException', e => handlePostActionError(e))
  */
 export async function run(): Promise<void> {
     try {
-        await setupGradle.complete(new CacheConfig(), new SummaryConfig())
+        await setupGradle.complete(new CacheConfig(), new DevelocityConfig(), new SummaryConfig())
     } catch (error) {
         handlePostActionError(error)
     }
 
     // Explicit process.exit() to prevent waiting for promises left hanging by `@actions/cache` on save.
-    process.exit()
+    await forceExit()
 }
 
 run()

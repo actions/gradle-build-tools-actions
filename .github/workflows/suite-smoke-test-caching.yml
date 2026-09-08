@@ -1,0 +1,27 @@
+name: suite-smoke-test-caching
+
+on:
+  workflow_call:
+    inputs:
+      runner-os:
+        type: string
+        default: '["ubuntu-latest"]'
+      skip-dist:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  enhanced-caching:
+    uses: ./.github/workflows/smoke-test-enhanced-caching.yml
+    with:
+      runner-os: '${{ inputs.runner-os }}'
+      skip-dist: ${{ inputs.skip-dist }}
+
+  basic-caching:
+    uses: ./.github/workflows/smoke-test-basic-caching.yml
+    with:
+      runner-os: '${{ inputs.runner-os }}'
+      skip-dist: ${{ inputs.skip-dist }}

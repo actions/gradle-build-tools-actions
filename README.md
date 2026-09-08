@@ -1,8 +1,15 @@
 # GitHub Actions for Gradle builds
 
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/gradle/actions/badge)](https://scorecard.dev/viewer/?uri=github.com/gradle/actions)
-
 This repository contains a set of GitHub Actions that are useful for building Gradle projects on GitHub.
+
+> [!NOTE]
+> ### ⚡️ Choice of caching providers in v6
+> To provide the fastest possible build experience this action includes **Enhanced Caching** via `gradle-actions-caching`, an optimized provider powered by proprietary technology. This feature is **free for all public repositories** and is currently available as a **Free Preview** for private repositories. 
+>
+> **Prefer a 100% Open Source (MIT) path?**
+> We also provide a **Basic Caching** provider as a thin wrapper over `actions/cache`. This provider is **free for all repositories** (public and private) and can be enabled at any time by setting `cache-provider: basic`.
+>
+> For a full breakdown of the components, usage tiers, and our **Safe Harbor** data privacy commitment, see our [Distribution & Licensing Guide](./DISTRIBUTION.md).
 
 ## The `setup-gradle` action
 
@@ -25,14 +32,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Setup Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         distribution: 'temurin'
         java-version: 17
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
+      uses: gradle/actions/setup-gradle@v6
     - name: Build with Gradle
       run: ./gradlew build
 ```
@@ -63,14 +70,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Setup Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         distribution: 'temurin'
         java-version: 17
     - name: Generate and submit dependency graph
-      uses: gradle/actions/dependency-submission@v4
+      uses: gradle/actions/dependency-submission@v6
 ```
 
 See the [full action documentation](docs/dependency-submission.md) for more advanced usage scenarios.
@@ -98,8 +105,8 @@ jobs:
     name: "Validation"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: gradle/actions/wrapper-validation@v4
+      - uses: actions/checkout@v6
+      - uses: gradle/actions/wrapper-validation@v6
 ```
 
 See the [full action documentation](docs/wrapper-validation.md) for more advanced usage scenarios.

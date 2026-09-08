@@ -1,34 +1,47 @@
 import * as core from '@actions/core'
 import * as httpm from '@actions/http-client'
-import {BuildScanConfig} from '../configuration'
+import {DevelocityConfig} from '../configuration'
 import {recordDeprecation} from '../deprecation-collector'
 
-export async function setupToken(
-    develocityAccessKey: string,
-    develocityAllowUntrustedServer: boolean | undefined,
-    develocityTokenExpiry: string
-): Promise<void> {
-    if (develocityAccessKey) {
-        try {
-            core.debug('Fetching short-lived token...')
-            const tokens = await getToken(develocityAccessKey, develocityAllowUntrustedServer, develocityTokenExpiry)
-            if (tokens != null && !tokens.isEmpty()) {
-                core.debug(`Got token(s), setting the access key env vars`)
-                const token = tokens.raw()
-                core.setSecret(token)
-                exportAccessKeyEnvVars(token)
-            } else {
-                handleMissingAccessToken()
-            }
-        } catch (e) {
-            handleMissingAccessToken()
-            core.warning(`Failed to fetch short-lived token, reason: ${e}`)
-        }
+/**
+ * Exchange the configured Develocity access key(s) for short-lived tokens, export them as the access
+ * key env vars, and return the short-lived token matching the configured Develocity server URL (for
+ * use as the `develocityAccessToken` cache option). Returns `undefined` when there is no access key,
+ * token fetching fails, or no token matches the configured server.
+ */
+export async function setupToken(config: DevelocityConfig): Promise<string | undefined> {
+    const develocityAccessKey = config.getDevelocityAccessKey()
+    if (!develocityAccessKey) {
+        return undefined
     }
+    try {
+        core.debug('Fetching short-lived token...')
+        const tokens = await getToken(
+            develocityAccessKey,
+            config.getDevelocityAllowUntrustedServer(),
+            config.getDevelocityTokenExpiry()
+        )
+        if (tokens != null && !tokens.isEmpty()) {
+            core.debug(`Got token(s), setting the access key env vars`)
+            const token = tokens.raw()
+            core.setSecret(token)
+            exportAccessKeyEnvVars(token)
+            for (const k of tokens.keys) {
+                core.setSecret(k.key)
+            }
+            const serverUrl = config.getDevelocityUrl()
+            return serverUrl ? resolveTokenForServer(tokens, serverUrl) : undefined
+        }
+        handleMissingAccessToken()
+    } catch (e) {
+        handleMissingAccessToken()
+        core.warning(`Failed to fetch short-lived token, reason: ${e}`)
+    }
+    return undefined
 }
 
 function exportAccessKeyEnvVars(value: string): void {
-    ;[BuildScanConfig.DevelocityAccessKeyEnvVar, BuildScanConfig.GradleEnterpriseAccessKeyEnvVar].forEach(key =>
+    ;[DevelocityConfig.DevelocityAccessKeyEnvVar, DevelocityConfig.GradleEnterpriseAccessKeyEnvVar].forEach(key =>
         core.exportVariable(key, value)
     )
 }
@@ -36,12 +49,14 @@ function exportAccessKeyEnvVars(value: string): void {
 function handleMissingAccessToken(): void {
     core.warning(`Failed to fetch short-lived token for Develocity`)
 
-    if (process.env[BuildScanConfig.GradleEnterpriseAccessKeyEnvVar]) {
+    if (process.env[DevelocityConfig.GradleEnterpriseAccessKeyEnvVar]) {
         // We do not clear the GRADLE_ENTERPRISE_ACCESS_KEY env var in v3, to let the users upgrade to DV 2024.1
-        recordDeprecation(`The ${BuildScanConfig.GradleEnterpriseAccessKeyEnvVar} env var is deprecated`)
+        recordDeprecation(`The ${DevelocityConfig.GradleEnterpriseAccessKeyEnvVar} env var is deprecated`)
     }
-    if (process.env[BuildScanConfig.DevelocityAccessKeyEnvVar]) {
-        core.warning(`The ${BuildScanConfig.DevelocityAccessKeyEnvVar} env var should be mapped to a short-lived token`)
+    if (process.env[DevelocityConfig.DevelocityAccessKeyEnvVar]) {
+        core.warning(
+            `The ${DevelocityConfig.DevelocityAccessKeyEnvVar} env var should be mapped to a short-lived token`
+        )
     }
 }
 
@@ -132,7 +147,6 @@ type HostnameAccessKey = {
 }
 
 export class DevelocityAccessCredentials {
-    static readonly accessKeyRegexp = /^([^;=\s]+=\w+)(;[^;=\s]+=\w+)*$/
     readonly keys: HostnameAccessKey[]
 
     private constructor(allKeys: HostnameAccessKey[]) {
@@ -145,17 +159,63 @@ export class DevelocityAccessCredentials {
 
     private static readonly keyDelimiter = ';'
     private static readonly hostDelimiter = '='
+    private static readonly whitespace = /\s/
 
+    /**
+     * Parse a `host=key[;host=key]*` access key value.
+     *
+     * Only the structure needed to split the value is validated: entries are separated by `;`, and
+     * each entry is a hostname followed by `=` and a key, where the hostname contains no `=`, `;` or
+     * whitespace, and the key is non-empty and contains no `;` or whitespace. Nothing else is
+     * assumed about the key: it may be an OIDC token containing `.`, `-`, `_` and `=` padding, so
+     * each entry is split on its _first_ `=` only.
+     *
+     * Returns `null` if the value doesn't match, emitting a warning that describes what is wrong.
+     */
     static parse(rawKey: string): DevelocityAccessCredentials | null {
-        if (!this.isValid(rawKey)) {
+        const trimmedKey = rawKey.trim()
+        if (!trimmedKey) {
             return null
         }
-        return new DevelocityAccessCredentials(
-            rawKey.split(this.keyDelimiter).map(hostKey => {
-                const pair = hostKey.split(this.hostDelimiter)
-                return {hostname: pair[0], key: pair[1]}
-            })
+        const keys = new Array<HostnameAccessKey>()
+        const entries = trimmedKey.split(this.keyDelimiter)
+        for (const [index, entry] of entries.entries()) {
+            const separatorIndex = entry.indexOf(this.hostDelimiter)
+            if (separatorIndex === -1) {
+                return this.warnBadlyFormed(index, entries.length, `no '${this.hostDelimiter}' separator`)
+            }
+            const hostname = entry.substring(0, separatorIndex)
+            const key = entry.substring(separatorIndex + 1)
+            if (!hostname) {
+                return this.warnBadlyFormed(index, entries.length, 'empty server name')
+            }
+            if (!key) {
+                return this.warnBadlyFormed(index, entries.length, 'empty key')
+            }
+            if (this.whitespace.test(hostname)) {
+                return this.warnBadlyFormed(index, entries.length, 'whitespace in the server name')
+            }
+            if (this.whitespace.test(key)) {
+                return this.warnBadlyFormed(index, entries.length, 'whitespace in the key')
+            }
+            keys.push({hostname, key})
+        }
+        return new DevelocityAccessCredentials(keys)
+    }
+
+    /**
+     * Warn that an access key value is badly formed and cannot be parsed. Reports only the position
+     * of the offending entry and the reason: the value is a secret, and is not yet registered for
+     * masking at this point, so no part of it is ever included in the message.
+     */
+    private static warnBadlyFormed(index: number, entryCount: number, reason: string): null {
+        const location = entryCount > 1 ? `entry ${index + 1} of ${entryCount}` : 'the value'
+        core.warning(
+            `Ignoring badly formed Develocity access key: ${reason} in ${location}. ` +
+                `The expected format is 'server${this.hostDelimiter}key` +
+                `[${this.keyDelimiter}server${this.hostDelimiter}key]*'.`
         )
+        return null
     }
 
     isEmpty(): boolean {
@@ -167,8 +227,21 @@ export class DevelocityAccessCredentials {
             .map(k => `${k.hostname}${DevelocityAccessCredentials.hostDelimiter}${k.key}`)
             .join(DevelocityAccessCredentials.keyDelimiter)
     }
+}
 
-    private static isValid(allKeys: string): boolean {
-        return this.accessKeyRegexp.test(allKeys)
+/**
+ * Resolve the token whose hostname matches a given Develocity server URL. Returns `undefined`
+ * (fail-closed) when the server URL is empty or no token matches the server's host.
+ */
+export function resolveTokenForServer(tokens: DevelocityAccessCredentials, serverUrl: string): string | undefined {
+    if (!serverUrl) {
+        return undefined
     }
+    let host: string
+    try {
+        host = new URL(serverUrl).hostname
+    } catch {
+        host = serverUrl // tolerate a bare hostname (no scheme)
+    }
+    return tokens.keys.find(k => k.hostname === host)?.key
 }

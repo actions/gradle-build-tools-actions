@@ -1,0 +1,11 @@
+NOTICE
+
+The software in this repository, except for the bundled `gradle-actions-caching` component, is licensed under the MIT License.
+
+The caching functionality in this project has been extracted into `gradle-actions-caching`, a proprietary commercial component that is not covered by the MIT License for this repository. 
+
+The `gradle-actions-caching` component is used only when enhanced caching is enabled and is not loaded or used with basic caching or when caching is disabled.
+
+Use the `gradle-actions-caching` component is subject to a separate license, available at license/gradle-actions-caching-license.txt. 
+
+For a detailed breakdown of components, licensing tiers, and data privacy terms, see DISTRIBUTION.md.

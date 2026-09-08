@@ -11,10 +11,6 @@ on:
     paths-ignore:
     - 'dist/**'
 
-concurrency:
-  group: integ-test
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
@@ -23,14 +19,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Build and upload distribution
-      if: ${{ needs.determine-suite.outputs.suite != 'full' }}
       uses: ./.github/actions/build-dist
+
+  smoke-tests:
+    needs: build-distribution
+    uses: ./.github/workflows/suite-smoke-test-caching.yml
+    concurrency:
+      group: CI-smoke-test-caching-${{ github.ref }}
+      cancel-in-progress: false
+    with:
+      skip-dist: false
+      runner-os: '["ubuntu-latest", "windows-latest"]'
+    secrets: inherit
 
   caching-integ-tests:
     needs: build-distribution
     uses: ./.github/workflows/suite-integ-test-caching.yml
+    concurrency:
+      group: CI-integ-test-caching-${{ github.ref }}
+      cancel-in-progress: false
     with:
       skip-dist: false
     secrets: inherit
@@ -38,8 +47,47 @@ jobs:
   other-integ-tests:
     permissions:
       contents: write
-    needs: build-distribution
+      actions: read
+    needs: caching-integ-tests
     uses: ./.github/workflows/suite-integ-test-other.yml
+    concurrency:
+      group: CI-integ-test-other-${{ github.ref }}
+      cancel-in-progress: false
     with:
       skip-dist: false
     secrets: inherit
+
+  dependency-submission-integ-tests:
+    permissions:
+      contents: write
+    needs: other-integ-tests
+    uses: ./.github/workflows/suite-integ-test-dependency-submission.yml
+    concurrency:
+      group: CI-integ-test-dependency-submission-${{ github.ref }}
+      cancel-in-progress: false
+    with:
+      skip-dist: false
+    secrets: inherit
+
+  # Aggregate gate: a single check that succeeds only when all integ-test jobs succeed.
+  # Require this one check in branch protection instead of every fanned-out matrix job.
+  integ-test-success:
+    if: ${{ always() }}
+    needs:
+    - build-distribution
+    - smoke-tests
+    - caching-integ-tests
+    - other-integ-tests
+    - dependency-submission-integ-tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Fail if any integ-test job failed or was cancelled
+      if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+      run: |
+        echo "One or more integ-test jobs did not succeed:"
+        echo "  build-distribution:                ${{ needs.build-distribution.result }}"
+        echo "  smoke-tests:                       ${{ needs.smoke-tests.result }}"
+        echo "  caching-integ-tests:               ${{ needs.caching-integ-tests.result }}"
+        echo "  other-integ-tests:                 ${{ needs.other-integ-tests.result }}"
+        echo "  dependency-submission-integ-tests: ${{ needs.dependency-submission-integ-tests.result }}"
+        exit 1
